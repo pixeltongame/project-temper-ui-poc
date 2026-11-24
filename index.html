@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dice &amp; Dungeons – Auto Battle</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">🎲</span><div><b>Dice &amp; Dungeons</b><small>Auto-battle demo · no backend</small></div></div>
+  <ol class="steps">
+    <li data-step="party">1 · Party</li><li data-step="campaign">2 · Campaign</li><li data-step="battle">3 · Battle</li>
+  </ol>
+  <div class="opts">
+    <div class="seg" id="viewSeg" title="Unit display"><button data-view="model" class="on">🧍 Model</button><button data-view="chip">⚪ Chip</button></div>
+    <button class="icon" id="soundBtn" title="Sound">🔊</button>
+  </div>
+</header>
+
+<main>
+  <!-- 1. PARTY -->
+  <section id="screen-party" class="screen">
+    <div class="h"><h1>Choose your party</h1><p>Pick up to 4 heroes. Mix tanks, healers and damage dealers.</p></div>
+    <div id="classGrid" class="cls-grid"></div>
+    <div class="dock">
+      <div class="slots" id="partySlots"></div>
+      <div class="dock-btns">
+        <button class="btn ghost" id="randParty">🎲 Random party</button>
+        <button class="btn ghost" id="clearParty">Clear</button>
+        <button class="btn primary" id="toCampaign" disabled>Choose campaign →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. CAMPAIGN -->
+  <section id="screen-campaign" class="screen hidden">
+    <div class="h"><h1>Choose a campaign</h1><p>Your party will fight automatically. Roll the dice and watch.</p></div>
+    <div id="campGrid" class="camp-grid"></div>
+    <div class="dock">
+      <div class="slots" id="partySlots2"></div>
+      <div class="dock-btns">
+        <button class="btn ghost" id="backParty">← Party</button>
+        <button class="btn primary" id="startBtn" disabled>⚔ Start adventure</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. BATTLE -->
+  <section id="screen-battle" class="screen hidden">
+    <div class="battle">
+      <div class="left">
+        <div class="bar-top">
+          <div class="camp-title"><span id="bCampIcon"></span><b id="bCampName"></b><span class="round" id="roundTag">Round 0</span></div>
+          <div class="ctrls">
+            <button class="icon" id="pauseBtn" title="Pause / resume">⏸</button>
+            <div class="seg" id="speedSeg"><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button></div>
+            <button class="btn small ghost" id="quitBtn">✕ Quit</button>
+          </div>
+        </div>
+        <div class="order" id="orderBar"></div>
+        <div class="board-wrap">
+          <div id="board" class="board"></div>
+          <div id="dice" class="dice hidden">
+            <div class="d-title"></div>
+            <div class="d-row">
+              <div class="d20"><svg viewBox="0 0 100 100"><polygon points="50,4 93,28 93,72 50,96 7,72 7,28"/><polygon class="in" points="50,22 77,38 77,62 50,78 23,62 23,38"/><text x="50" y="62">20</text></svg></div>
+              <div class="d-side"><div class="d-calc"></div><div class="d-res"></div></div>
+            </div>
+            <div class="d-dmg"></div>
+          </div>
+          <div id="banner" class="banner hidden"></div>
+        </div>
+      </div>
+      <aside class="right">
+        <h3>Party</h3><div id="partyCards" class="cards"></div>
+        <h3>Enemies</h3><div id="enemyList" class="elist"></div>
+        <h3>Inventory</h3><div id="invBox" class="inv"></div>
+        <h3>Battle log</h3><div id="log" class="log"></div>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<div id="result" class="result hidden"></div>
+
+<script src="js/data.js"></script>
+<script src="js/models.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
