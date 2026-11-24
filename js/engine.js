@@ -1,4 +1,5 @@
 'use strict';
+const t_ = (k, v) => t(k, v);
 /* ============ Battle engine: pure rules + AI. All visuals go through UI hooks. ============ */
 let G = null, UI = null, RUN_ID = 0;
 function setUI(u) { UI = u; }
@@ -19,9 +20,10 @@ const dmgBonus = u => u.mod + u.gear.dmg + (u.status.inspire > 0 ? 2 : 0);
 const avgDice = sk => sk.dice[0] * (sk.dice[1] + 1) / 2;
 const lootAt = (x, y) => G.loot.find(l => l.x === x && l.y === y);
 
-function makeUnit(def, team, x, y, id, name) {
+function makeUnit(def, team, x, y, id, suffix, base) {
+  base = base || def.name; suffix = suffix || '';
   return {
-    id, team, key: def.key, name, cls: def.name, emoji: def.emoji, boss: !!def.boss, scale: def.scale || 1, x, y,
+    id, team, key: def.key, base, suffix, name: base + suffix, cls: def.name, emoji: def.emoji, boss: !!def.boss, scale: def.scale || 1, x, y,
     maxHp: def.hp, hp: def.hp, maxMp: def.mp, mp: def.mp, maxSp: def.sp, sp: def.sp,
     ac: def.ac, atk: def.atk, mod: def.mod, move: def.move, init: def.init || 0, skills: def.skills,
     status: { stun: 0, guard: 0, burn: 0, poison: 0, inspire: 0 }, gear: { hit: 0, dmg: 0, ac: 0 }, gearList: [],
@@ -33,17 +35,17 @@ function makeUnit(def, team, x, y, id, name) {
 function newBattle(camp, keys) {
   const g = {
     camp, cols: camp.cols, rows: camp.rows, obst: new Set(camp.obstacles.map(o => o[0] + ',' + o[1])),
-    units: [], loot: [], lootId: 0, round: 0, inv: { hp: 2, mp: 1, sp: 1 }, gold: 0, over: null, order: [], gained: [], timeout: false
+    units: [], loot: [], lootId: 0, round: 0, inv: { hp: 2, mp: 1, sp: 1 }, gold: 0, over: null, order: [], gained: [], timeout: false, flags: {}
   };
   G = g;
-  keys.forEach((k, i) => { const c = CLASSES[k], p = camp.playerStart[i]; g.units.push(makeUnit(c, 'player', p[0], p[1], 'p' + i, c.hero)); });
+  keys.forEach((k, i) => { const c = CLASSES[k], p = camp.playerStart[i]; g.units.push(makeUnit(c, 'player', p[0], p[1], 'p' + i, '', c.hero)); });
   const list = camp.enemies.concat([camp.boss]);
   const counts = {}; list.forEach(e => counts[e[0]] = (counts[e[0]] || 0) + 1);
   const seen = {};
   list.forEach((e, i) => {
     const def = MONSTERS[e[0]]; seen[e[0]] = (seen[e[0]] || 0) + 1;
-    const nm = counts[e[0]] > 1 ? def.name + ' ' + String.fromCharCode(64 + seen[e[0]]) : def.name;
-    g.units.push(makeUnit(def, 'enemy', e[1], e[2], 'e' + i, nm));
+    const sfx = counts[e[0]] > 1 ? ' ' + String.fromCharCode(64 + seen[e[0]]) : '';
+    g.units.push(makeUnit(def, 'enemy', e[1], e[2], 'e' + i, sfx));
   });
   return g;
 }
@@ -175,7 +177,7 @@ function decide(u) {
 /* ---------- loot ---------- */
 function randDrop() {
   const r = rnd();
-  if (r < .3) { const a = 10 + d(30); return { kind: 'gold', amount: a, name: a + ' Gold', emoji: '💰' }; }
+  if (r < .3) { const a = 10 + d(30); return { kind: 'gold', amount: a, name: 'Gold', emoji: '💰' }; }
   if (r < .55) return { kind: 'potion', key: 'hp', ...POTIONS.hp };
   if (r < .67) return { kind: 'potion', key: 'mp', ...POTIONS.mp };
   if (r < .77) return { kind: 'potion', key: 'sp', ...POTIONS.sp };
@@ -204,7 +206,7 @@ async function pickup(u, l) {
     if (it.hp) { u.maxHp += it.hp; u.hp += it.hp; }
     u.gearList.push(it);
   }
-  UI.log(`${u.name} looted ${it.emoji} ${it.name}${it.kind === 'gear' ? ' (equipped)' : ''}.`, 'loot');
+  UI.log(t(it.kind === 'gear' ? 'log.lootEq' : 'log.loot', { u: dn(u), i: it.emoji + ' ' + itemName(it) }), 'loot');
   await UI.pickup(u, l);
 }
 
@@ -212,15 +214,21 @@ async function pickup(u, l) {
 async function kill(t, killer) {
   t.alive = false; t.hp = 0; for (const k in t.status) t.status[k] = 0;
   if (killer && killer.team !== t.team) killer.stats.kills++;
-  UI.log(`${t.name} is defeated!`, 'death');
+  UI.log(t_('log.dead', { u: dn(t) }), 'death');
   await UI.die(t);
+  checkEnd();
   if (t.team === 'enemy') {
+    if (!t.boss && !G.flags.firstKill) { G.flags.firstKill = 1; if (!G.over) await UI.dm('firstKill', { u: t }); }
     for (const item of genDrops(t.boss)) {
       const p = freeTileNear(t.x, t.y), l = { id: ++G.lootId, x: p.x, y: p.y, item };
       G.loot.push(l); await UI.dropLoot(l, t);
+      if (item.rarity === 'rare' && !G.flags.rare) { G.flags.rare = 1; await UI.dm('rareLoot', { u: t }); }
     }
+  } else if (!G.over) {
+    await UI.dm('heroFall', { u: t });
+    const left = alive('player');
+    if (left.length === 1 && !G.flags.last) { G.flags.last = 1; await UI.dm('lastStand', { u: left[0] }); }
   }
-  checkEnd();
 }
 function checkEnd() {
   if (G.over) return;
@@ -232,6 +240,11 @@ async function applyDamage(t, dmg, o = {}) {
   UI.refresh(t);
   await UI.hit(t, dmg, !!o.crit, o);
   if (t.hp <= 0) await kill(t, o.from);
+  else if (t.boss && !G.over) {
+    const r = t.hp / t.maxHp;
+    if (r <= .2 && !G.flags.low) { G.flags.low = G.flags.half = 1; await UI.dm('bossLow', { u: t }); }
+    else if (r <= .5 && !G.flags.half) { G.flags.half = 1; await UI.dm('bossHalf', { u: t }); }
+  }
 }
 async function applyHeal(t, amt, from) {
   const real = Math.min(amt, t.maxHp - t.hp); t.hp += real; if (from) from.stats.healed += real;
@@ -248,13 +261,13 @@ async function perform(u, p) {
   if (!targets.length) return;
 
   if (sk.kind === 'buff') {
-    UI.log(`${u.name} uses ${sk.name}.`, 'buff');
+    UI.log(t_('log.buff', { u: dn(u), s: tr(sk.name) }), 'buff');
     await UI.castFx(u, sk, center, targets, {});
     for (const t of targets) { t.status[sk.buff.type] = Math.max(t.status[sk.buff.type], sk.buff.turns); UI.refresh(t); UI.statusFx && await UI.statusFx(t, sk.buff.type); }
     return;
   }
   if (sk.kind === 'heal') {
-    UI.log(`${u.name} casts ${sk.name}.`, 'heal');
+    UI.log(t_('log.heal', { u: dn(u), s: tr(sk.name) }), 'heal');
     await UI.castFx(u, sk, center, targets, {});
     for (let i = 0; i < targets.length; i++) {
       const t = targets[i], dice = rollDice(sk.dice[0], sk.dice[1]), total = sum(dice) + u.mod;
@@ -265,7 +278,7 @@ async function perform(u, p) {
   }
   // damage
   const multi = targets.length > 1;
-  if (multi) { UI.log(`${u.name} unleashes ${sk.name}!`, 'info'); await UI.castFx(u, sk, center, targets, { hit: true }); }
+  if (multi) { UI.log(t_('log.aoe', { u: dn(u), s: tr(sk.name) }), 'info'); await UI.castFx(u, sk, center, targets, { hit: true }); }
   for (let i = 0; i < targets.length; i++) {
     const t = targets[i]; if (!t.alive) continue;
     const roll = d(20), nat1 = roll === 1, crit = roll >= (sk.critRange || 20);
@@ -274,19 +287,20 @@ async function perform(u, p) {
     await UI.rollAttack({ u, t, sk, roll, bonus, total, ac, hit, crit, nat1, quick: multi && i > 0 });
     if (!multi) await UI.castFx(u, sk, center, [t], { hit });
     if (!hit) {
-      UI.log(`${u.name}'s ${sk.name} ${nat1 ? 'fumbles' : 'misses'} ${t.name} (${roll}+${bonus}=${total} vs AC ${ac}).`, 'miss');
+      UI.log(t_(nat1 ? 'log.fumble' : 'log.miss', { u: dn(u), s: tr(sk.name), t: dn(t), r: roll, b: bonus, tot: total, ac }), 'miss');
       await UI.miss(t, u, sk, nat1); continue;
     }
     let dice = rollDice(sk.dice[0], sk.dice[1]); if (crit) dice = dice.concat(rollDice(sk.dice[0], sk.dice[1]));
     const db = dmgBonus(u), dmg = Math.max(1, sum(dice) + db);
     await UI.rollDamage({ u, t, sk, dice, bonus: db, total: dmg, crit, quick: multi && i > 0 });
-    UI.log(`${u.name} ${crit ? 'CRITS' : 'hits'} ${t.name} with ${sk.name} for ${dmg} damage.`, crit ? 'crit' : 'hit');
+    UI.log(t_(crit ? 'log.crit' : 'log.hit', { u: dn(u), t: dn(t), s: tr(sk.name), d: dmg }), crit ? 'crit' : 'hit');
+    if (crit && u.team === 'player' && G.round - (G.flags.critAt ?? -9) >= 2) { G.flags.critAt = G.round; await UI.dm('heroCrit', { u }); }
     await applyDamage(t, dmg, { from: u, crit, sk });
     if (sk.drain && u.alive) { const h = Math.floor(dmg / 2); if (h) await applyHeal(u, h, u); }
     if (t.alive && sk.status && rnd() < (sk.status.chance || 1)) {
       const st = sk.status;
-      if (st.type === 'stun' && t.boss) { UI.log(`${t.name} resists the stun!`, 'info'); }
-      else { t.status[st.type] = Math.max(t.status[st.type], st.turns); UI.log(`${t.name} is ${st.type === 'stun' ? 'stunned' : st.type === 'burn' ? 'burning' : 'poisoned'}!`, 'status'); UI.refresh(t); await UI.statusFx(t, st.type); }
+      if (st.type === 'stun' && t.boss) { UI.log(t_('log.resist', { t: dn(t) }), 'info'); }
+      else { t.status[st.type] = Math.max(t.status[st.type], st.turns); UI.log(t_(st.type === 'stun' ? 'log.stunned' : st.type === 'burn' ? 'log.burning' : 'log.poisoned', { t: dn(t) }), 'status'); UI.refresh(t); await UI.statusFx(t, st.type); }
     }
     if (G.over) break;
   }
@@ -303,7 +317,7 @@ async function moveAlong(u, node) {
 
 async function usePotion(u, key) {
   G.inv[key]--; const P = POTIONS[key];
-  UI.log(`${u.name} drinks a ${P.name}.`, 'heal');
+  UI.log(t_('log.potion', { u: dn(u), p: tr(P.name) }), 'heal');
   await UI.announce(u, { name: P.name, ic: P.emoji }, u);
   if (key === 'hp') { const dice = rollDice(2, 6), total = sum(dice) + 4; await UI.rollDamage({ u, t: u, sk: { name: P.name, dice: [2, 6] }, dice, bonus: 4, total, heal: true }); await applyHeal(u, total, u); }
   else { const k = key; u[k] = Math.min(u['max' + k[0].toUpperCase() + k[1]], u[k] + 10); UI.refresh(u); await UI.heal(u, 0, key); }
@@ -311,17 +325,18 @@ async function usePotion(u, key) {
 
 async function takeTurn(u) {
   await UI.turnStart(u);
+  if (u.boss && !G.flags.bossIntro) { G.flags.bossIntro = 1; await UI.dm('bossIntro', { u }); }
   u.mp = Math.min(u.maxMp, u.mp + 3); u.sp = Math.min(u.maxSp, u.sp + 5); UI.refresh(u);
   for (const t of ['burn', 'poison']) if (u.status[t] > 0) {
     u.status[t]--; const dmg = t === 'burn' ? 4 : 3;
-    UI.log(`${u.name} suffers ${dmg} ${t} damage.`, 'status');
+    UI.log(t_('log.dot', { u: dn(u), d: dmg, k: t_('dot.' + t) }), 'status');
     await applyDamage(u, dmg, { src: t, dot: t });
     if (!u.alive) { await UI.turnEnd(u); return; }
   }
   if (u.status.guard > 0) u.status.guard--;
   if (u.status.inspire > 0) u.status.inspire--;
   UI.refresh(u);
-  if (u.status.stun > 0) { u.status.stun--; UI.refresh(u); UI.log(`${u.name} is stunned and loses the turn.`, 'status'); await UI.skip(u); await UI.turnEnd(u); return; }
+  if (u.status.stun > 0) { u.status.stun--; UI.refresh(u); UI.log(t_('log.stunskip', { u: dn(u) }), 'status'); await UI.skip(u); await UI.turnEnd(u); return; }
   if (!G.over) {
     const plan = decide(u);
     if (plan.type === 'potion') await usePotion(u, plan.key);
@@ -329,9 +344,9 @@ async function takeTurn(u) {
       if (plan.node.steps > 0) await moveAlong(u, plan.node);
       if (u.alive && !G.over) await perform(u, plan);
     } else if (plan.type === 'move') {
-      UI.log(`${u.name} ${plan.why === 'loot' ? 'heads for loot' : plan.why === 'support' ? 'moves to support allies' : 'advances'}.`, 'info');
+      UI.log(t_(plan.why === 'loot' ? 'log.loothead' : plan.why === 'support' ? 'log.support' : 'log.advance', { u: dn(u) }), 'info');
       await moveAlong(u, plan.node);
-    } else { UI.log(`${u.name} holds position.`, 'info'); await UI.skip(u, 'hold'); }
+    } else { UI.log(t_('log.hold', { u: dn(u) }), 'info'); await UI.skip(u, 'hold'); }
   }
   await UI.turnEnd(u);
 }
@@ -342,16 +357,19 @@ async function runBattle(camp, keys) {
   try {
     await UI.battleStart(g);
     for (const u of g.units) u.initRoll = d(20) + u.init;
-    UI.log('Initiative rolled!', 'info');
+    UI.log(t_('log.init'), 'info');
     await UI.initiative(g);
+    await UI.dm('start', {});
     while (!g.over && g.round < 40) {
       g.round++; g.order = g.units.filter(u => u.alive).sort((a, b) => b.initRoll - a.initRoll || b.init - a.init);
       await UI.roundStart(g.round);
       for (const u of g.order) { if (g.over) break; if (!u.alive) continue; await takeTurn(u); }
     }
     if (!g.over) { g.over = 'defeat'; g.timeout = true; }
+    if (g.over === 'defeat') await UI.dm('defeat', {});
     if (g.over === 'victory') {
-      UI.log('The boss has fallen! The party gathers the spoils.', 'info');
+      await UI.dm('victory', {});
+      UI.log(t_('log.spoils'), 'info');
       for (const l of [...g.loot]) {
         const ps = alive('player'); if (!ps.length) break;
         const n = ps.reduce((a, b) => cheb(a, l) < cheb(b, l) ? a : b);

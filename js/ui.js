@@ -59,7 +59,7 @@ function spriteHTML(u) {
 }
 function createUnitEl(u, i) {
   const e = el('div', `unit ${u.team}${u.boss ? ' boss' : ''}`);
-  e.id = 'u-' + u.id; e.title = `${u.name} (${u.cls})`;
+  e.id = 'u-' + u.id; e.title = `${dn(u)} (${tr(u.cls)})`;
   e.style.setProperty('--x', u.x); e.style.setProperty('--y', u.y); e.style.setProperty('--sc', u.scale); e.style.setProperty('--dl', (i * .37) % 2);
   e.style.zIndex = 10 + u.y;
   e.innerHTML = `<div class="stat"><div class="ico"></div><div class="bars"><b class="hp"><i></i></b><b class="mp"><i></i></b><b class="sp"><i></i></b></div></div><div class="spr"><div class="flip">${spriteHTML(u)}</div></div>`;
@@ -81,19 +81,19 @@ function buildCards(g) {
   const box = $('#partyCards'); box.innerHTML = ''; UIX.cards = {};
   g.units.filter(u => u.team === 'player').forEach(u => {
     const c = el('div', 'card');
-    c.innerHTML = `<div class="av">${avatarHTML(u)}</div><div><div class="nm"><span>${u.name}</span><small>${u.cls}</small></div>${barRow('hp')}${u.maxMp ? barRow('mp') : ''}${barRow('sp')}<div class="ic"></div></div>`;
+    c.innerHTML = `<div class="av">${avatarHTML(u)}</div><div><div class="nm"><span>${dn(u)}</span><small>${tr(u.cls)}</small></div>${barRow('hp')}${u.maxMp ? barRow('mp') : ''}${barRow('sp')}<div class="ic"></div></div>`;
     box.append(c); UIX.cards[u.id] = c;
   });
   const lst = $('#enemyList'); lst.innerHTML = ''; UIX.rows = {};
   g.units.filter(u => u.team === 'enemy').forEach(u => {
     const r = el('div', 'erow' + (u.boss ? ' boss' : ''));
-    r.innerHTML = `<span>${u.emoji}</span><b>${u.name}</b>${barRow('hp', 'e')}`;
+    r.innerHTML = `<span>${u.emoji}</span><b>${dn(u)}</b>${barRow('hp', 'e')}`;
     lst.append(r); UIX.rows[u.id] = r;
   });
 }
 function renderInv() {
   if (!G) return;
-  $('#invBox').innerHTML = `<span class="invi">💰 ${G.gold}</span>` + Object.keys(POTIONS).map(k => `<span class="invi" title="${POTIONS[k].desc}">${POTIONS[k].emoji} ${G.inv[k]}</span>`).join('');
+  $('#invBox').innerHTML = `<span class="invi">💰 ${G.gold}</span>` + Object.keys(POTIONS).map(k => `<span class="invi" title="${tr(POTIONS[k].name)}: ${tr(POTIONS[k].desc)}">${POTIONS[k].emoji} ${G.inv[k]}</span>`).join('');
 }
 function refreshUnit(u) {
   const e = UIX.units[u.id]; if (!e) return;
@@ -111,7 +111,7 @@ function refreshUnit(u) {
 }
 function updateOrder(list) {
   const bar = $('#orderBar'); bar.innerHTML = '';
-  list.forEach(u => { const o = el('div', `ord ${u.team}${u.boss ? ' boss' : ''}${u.alive ? '' : ' dead'}`, u.emoji); o.id = 'ord-' + u.id; o.title = u.name + ' (init ' + u.initRoll + ')'; bar.append(o); });
+  list.forEach(u => { const o = el('div', `ord ${u.team}${u.boss ? ' boss' : ''}${u.alive ? '' : ' dead'}`, u.emoji); o.id = 'ord-' + u.id; o.title = dn(u) + ' (init ' + u.initRoll + ')'; bar.append(o); });
 }
 function logLine(msg, cls) {
   const l = $('#log'); if (!l) return; const d = el('div', cls || '', msg); l.append(d); l.scrollTop = l.scrollHeight;
@@ -247,19 +247,19 @@ const GameUI = {
     g.camp.obstacles.forEach(o => { const e = el('div', 'obst', o[2]); e.style.setProperty('--x', o[0]); e.style.setProperty('--y', o[1]); b.append(e); });
     g.units.forEach((u, i) => createUnitEl(u, i));
     UIX.fx = el('div', 'fx'); b.append(UIX.fx);
-    $('#bCampIcon').textContent = g.camp.icon; $('#bCampName').textContent = g.camp.name; $('#roundTag').textContent = 'Round 0';
+    $('#bCampIcon').textContent = g.camp.icon; $('#bCampName').textContent = tr(g.camp.name); $('#roundTag').textContent = t('round', { n: 0 }); $('#dmText').textContent = t('dm.wait');
     $('#log').innerHTML = ''; hideDice(); $('#banner').classList.add('hidden'); $('#result').classList.add('hidden');
     buildCards(g); g.units.forEach(refreshUnit); renderInv();
-    logLine(`⚔ ${g.camp.name}: ${g.units.filter(u => u.team === 'player').map(u => u.name).join(', ')} vs ${g.units.filter(u => u.team === 'enemy').length} foes.`, 'round');
+    logLine(t('log.start', { c: tr(g.camp.name), h: g.units.filter(u => u.team === 'player').map(dn).join(', '), n: g.units.filter(u => u.team === 'enemy').length }), 'round');
     await wait(700);
   },
   async initiative(g) {
     const list = g.units.slice().sort((a, b) => b.initRoll - a.initRoll); updateOrder(list);
-    logLine('Order: ' + list.map(u => `${u.name} (${u.initRoll})`).join(' › '), 'info');
+    logLine(t('log.order', { l: list.map(u => `${dn(u)} (${u.initRoll})`).join(' › ') }), 'info');
     await wait(500);
   },
   async roundStart(n) {
-    $('#roundTag').textContent = 'Round ' + n; logLine(`— Round ${n} —`, 'round'); updateOrder(G.order); await wait(250);
+    $('#roundTag').textContent = t('round', { n }); logLine(t('log.round', { n }), 'round'); updateOrder(G.order); await wait(250);
   },
   async turnStart(u) {
     $$('.unit.active').forEach(e => e.classList.remove('active')); $$('.card.act').forEach(e => e.classList.remove('act')); $$('.ord.act').forEach(e => e.classList.remove('act'));
@@ -271,13 +271,13 @@ const GameUI = {
     if (!u.alive) $('#ord-' + u.id)?.classList.add('dead');
     await wait(120); hideDice();
   },
-  async skip(u, why) { floatText(PU(u), why === 'hold' ? '💤' : '💫 Stunned', '#fff'); await wait(450); },
+  async skip(u, why) { floatText(PU(u), why === 'hold' ? t('f.hold') : t('f.stunned'), '#fff'); await wait(450); },
   async moveUnit(u, from, to) {
     const e = UIX.units[u.id]; e.style.setProperty('--x', to.x); e.style.setProperty('--y', to.y); e.style.zIndex = 10 + to.y;
     await wait(290);
   },
   async announce(u, sk, c) {
-    callout(PU(u), `${sk.ic || ''} ${sk.name}`);
+    callout(PU(u), `${sk.ic || ''} ${tr(sk.name)}`);
     if (sk.kind === 'heal') SFX.heal(); else SFX.cast();
     await wait(380);
   },
@@ -285,25 +285,25 @@ const GameUI = {
 
   async rollAttack(ev) {
     const D = dv(); D.classList.remove('hidden'); $('.d-row', D).style.display = '';
-    $('.d-title', D).innerHTML = `${ev.u.emoji} <b>${ev.u.name}</b> → ${ev.t.emoji} <b>${ev.t.name}</b> · ${ev.sk.name}`;
+    $('.d-title', D).innerHTML = `${ev.u.emoji} <b>${dn(ev.u)}</b> → ${ev.t.emoji} <b>${dn(ev.t)}</b> · ${tr(ev.sk.name)}`;
     const d20 = $('.d20', D), txt = $('.d20 text', D), calc = $('.d-calc', D), res = $('.d-res', D);
-    $('.d-dmg', D).innerHTML = ''; res.textContent = ''; res.className = 'd-res'; d20.className = 'd20 spin'; calc.textContent = `Attack roll vs AC ${ev.ac}`;
+    $('.d-dmg', D).innerHTML = ''; res.textContent = ''; res.className = 'd-res'; d20.className = 'd20 spin'; calc.textContent = t('d.vs', { ac: ev.ac });
     await spinNumber(txt, 20, ev.quick ? 320 : 950);
     txt.textContent = ev.roll; const cls = ev.crit ? 'crit' : ev.hit ? 'hit' : 'miss'; d20.className = 'd20 pop ' + cls;
     calc.textContent = `${ev.roll} ${ev.bonus < 0 ? '−' : '+'} ${Math.abs(ev.bonus)} = ${ev.total}  vs AC ${ev.ac}`;
-    res.className = 'd-res ' + cls; res.textContent = ev.crit ? 'CRITICAL HIT!' : ev.nat1 ? 'FUMBLE!' : ev.hit ? 'HIT!' : 'MISS';
+    res.className = 'd-res ' + cls; res.textContent = ev.crit ? t('d.crit') : ev.nat1 ? t('d.fumble') : ev.hit ? t('d.hit') : t('d.miss');
     (ev.hit ? (ev.crit ? SFX.crit : SFX.hit) : SFX.miss)();
     await wait(ev.quick ? 260 : 650);
   },
   async rollDamage(ev) {
     const D = dv(); D.classList.remove('hidden');
-    if (ev.heal) { $('.d-row', D).style.display = 'none'; $('.d-title', D).innerHTML = `${ev.u.emoji} <b>${ev.u.name}</b> → ${ev.t.emoji} <b>${ev.t.name}</b> · ${ev.sk.name}`; }
+    if (ev.heal) { $('.d-row', D).style.display = 'none'; $('.d-title', D).innerHTML = `${ev.u.emoji} <b>${dn(ev.u)}</b> → ${ev.t.emoji} <b>${dn(ev.t)}</b> · ${tr(ev.sk.name)}`; }
     const row = $('.d-dmg', D); row.innerHTML = '';
     const sides = ev.sk.dice[1], dice = ev.dice.map(() => { const x = el('div', 'die roll' + (ev.heal ? ' heal' : ''), '?'); row.append(x); return x; });
     const t0 = performance.now();
     while (performance.now() - t0 < T(ev.quick ? 300 : 700)) { dice.forEach(x => x.textContent = 1 + Math.floor(Math.random() * sides)); SFX.tick(); await wait(65); }
     dice.forEach((x, i) => { x.textContent = ev.dice[i]; x.classList.remove('roll'); if (ev.crit && i >= ev.dice.length / 2) x.classList.add('crit'); });
-    row.append(el('span', 'd-tot ' + (ev.heal ? 'heal' : 'dmg'), `${ev.dice.length}d${sides}${ev.bonus ? (ev.bonus > 0 ? '+' : '−') + Math.abs(ev.bonus) : ''} = ${ev.total} ${ev.heal ? 'HEAL' : 'DMG'}`));
+    row.append(el('span', 'd-tot ' + (ev.heal ? 'heal' : 'dmg'), `${ev.dice.length}d${sides}${ev.bonus ? (ev.bonus > 0 ? '+' : '−') + Math.abs(ev.bonus) : ''} = ${ev.total} ${ev.heal ? t('d.heal') : t('d.dmg')}`));
     await wait(ev.quick ? 220 : 500);
   },
 
@@ -311,13 +311,13 @@ const GameUI = {
     const e = UIX.units[t.id], p = PU(t);
     const col = o.dot === 'burn' ? C.yellow : o.dot === 'poison' ? '#b27cf0' : '#fff';
     floatText(p, (o.dot ? ST_ICON[o.dot] : '') + '−' + dmg, crit ? C.yellow : (o.dot ? col : '#ff8a84'), crit);
-    if (crit) { callout(p, 'CRITICAL!'); shakeBoard(7, 300); }
+    if (crit) { callout(p, t_('f.crit')); shakeBoard(7, 300); }
     crit ? SFX.crit() : SFX.hit();
     const spr = $('.spr', e);
     await anim(spr, [{ transform: 'translateX(0)', filter: 'brightness(1)' }, { transform: 'translateX(-9px)', filter: 'brightness(3) saturate(0)' }, { transform: 'translateX(7px)', filter: 'brightness(2)' }, { transform: 'translateX(0)', filter: 'brightness(1)' }], 320, { easing: 'linear' });
   },
   async miss(t, u, sk, nat1) {
-    floatText(PU(t), nat1 ? 'FUMBLE' : 'MISS', '#c8d4ee'); const spr = $('.spr', UIX.units[t.id]);
+    floatText(PU(t), nat1 ? t_('f.fumble') : t_('f.miss'), '#c8d4ee'); const spr = $('.spr', UIX.units[t.id]);
     await anim(spr, [{ transform: 'translateX(0)' }, { transform: 'translateX(14px) rotate(6deg)' }, { transform: 'translateX(0)' }], 300);
   },
   async heal(t, amt, key) {
@@ -325,7 +325,7 @@ const GameUI = {
     floatText(p, key ? `+10 ${key.toUpperCase()}` : '+' + amt, key === 'mp' ? '#8fb4ee' : key === 'sp' ? C.yellow : '#7fe3da', true);
     burst(p, { emoji: '✚', n: 5, r: .5, rise: true, size: .22 }); SFX.heal(); await wait(380);
   },
-  async statusFx(t, type) { floatText(PU(t), ST_ICON[type] + ' ' + (type === 'stun' ? 'Stunned' : type === 'burn' ? 'Burning' : type === 'poison' ? 'Poisoned' : type === 'guard' ? 'Guarded' : 'Inspired'), type === 'inspire' || type === 'guard' ? C.yellow : '#e9c6ff'); await wait(300); },
+  async statusFx(t, type) { floatText(PU(t), ST_ICON[type] + ' ' + t_('st.' + type), type === 'inspire' || type === 'guard' ? C.yellow : '#e9c6ff'); await wait(300); },
   async die(u) {
     const e = UIX.units[u.id]; SFX.die(); burst(PU(u), { emoji: u.team === 'enemy' ? '💨' : '💔', n: 6, r: .8 });
     e.classList.remove('active'); $('.stat', e).style.display = 'none';
@@ -340,19 +340,19 @@ const GameUI = {
     UIX.board.append(e); UIX.loots[l.id] = e; SFX.loot();
     const cp = cellPx(), dx = (from.x - l.x) * cp, dy = (from.y - l.y) * cp;
     await anim(e, [{ transform: `translate(${dx}px,${dy}px) scale(.3)`, opacity: 0 }, { transform: `translate(${dx * .4}px,${dy * .4 - cp * .6}px) scale(1.3)`, opacity: 1, offset: .55 }, { transform: 'translate(0,0) scale(1)', opacity: 1 }], 520);
-    logLine(`${from.name} dropped ${l.item.emoji} ${l.item.name}.`, 'loot');
+    logLine(t('log.drop', { u: dn(from), i: l.item.emoji + ' ' + itemName(l.item) }), 'loot');
   },
   async pickup(u, l) {
     const e = UIX.loots[l.id]; SFX.loot();
     if (e) { const cp = cellPx(), dx = (u.x - l.x) * cp, dy = (u.y - l.y) * cp - cp * .3; await anim(e, [{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scale(.4)`, opacity: .2 }], 420, { easing: 'ease-in', fill: 'forwards' }); e.remove(); delete UIX.loots[l.id]; }
-    floatText(PU(u), `${l.item.emoji} ${l.item.name}`, C.yellow, false); burst(PU(u), { emoji: '✨', n: 5, r: .7 });
+    floatText(PU(u), `${l.item.emoji} ${itemName(l.item)}`, C.yellow, false); burst(PU(u), { emoji: '✨', n: 5, r: .7 });
     refreshUnit(u); await wait(300);
   },
 
   async battleEnd(g) {
     $$('.unit.active').forEach(e => e.classList.remove('active')); hideDice();
     const win = g.over === 'victory';
-    const bn = $('#banner'); bn.classList.remove('hidden'); bn.style.color = win ? C.yellow : C.red; bn.textContent = win ? '🏆 VICTORY!' : (g.timeout ? '⌛ RETREAT' : '💀 DEFEAT');
+    const bn = $('#banner'); bn.classList.remove('hidden'); bn.style.color = win ? C.yellow : C.red; bn.textContent = win ? t('ban.win') : (g.timeout ? t('ban.retreat') : t('ban.lose'));
     anim(bn, [{ transform: 'scale(.3)', opacity: 0 }, { transform: 'scale(1.15)', opacity: 1, offset: .6 }, { transform: 'scale(1)', opacity: 1 }], 700);
     if (win) { SFX.win(); for (let i = 0; i < 4; i++) { burst({ x: rr(.2, .8) * UIX.board.clientWidth, y: rr(.2, .7) * UIX.board.clientHeight }, { emoji: ['🎉', '✨', '⭐', '🪙'][i], n: 10, r: 2, size: .4, dur: 1100 }); await wait(250); } }
     else SFX.lose();
@@ -362,17 +362,41 @@ const GameUI = {
 
 /* ---- result screen ---- */
 function showResult(g) {
-  const win = g.over === 'victory', heroes = g.units.filter(u => u.team === 'player');
+  const win = g.over === 'victory', heroes = g.units.filter(u => u.team === 'player'), S = story(g.camp.id);
   const mvp = heroes.slice().sort((a, b) => b.stats.dmg + b.stats.healed - a.stats.dmg - a.stats.healed)[0];
-  const rows = heroes.map(h => `<tr><td>${h.emoji} <b>${h.name}</b> <small style="color:var(--muted)">${h.cls}</small> ${h === mvp ? '<span class="mvp">★ MVP</span>' : ''}</td><td>${h.alive ? '❤️ ' + h.hp + '/' + h.maxHp : '🪦 fallen'}</td><td>${h.stats.dmg}</td><td>${h.stats.healed}</td><td>${h.stats.kills}</td><td>${h.gearList.map(x => x.emoji).join(' ') || '–'}</td></tr>`).join('');
-  const loot = g.gained.length ? g.gained.map(i => `<span class="${i.rarity === 'rare' ? 'rare' : ''}">${i.emoji} ${i.name}</span>`).join('') : '<span>Nothing collected</span>';
+  const rows = heroes.map(h => `<tr><td>${h.emoji} <b>${dn(h)}</b> <small style="color:var(--muted)">${tr(h.cls)}</small> ${h === mvp ? `<span class="mvp">${t('mvp')}</span>` : ''}</td><td>${h.alive ? '❤️ ' + h.hp + '/' + h.maxHp : t('res.fallen')}</td><td>${h.stats.dmg}</td><td>${h.stats.healed}</td><td>${h.stats.kills}</td><td>${h.gearList.map(x => x.emoji).join(' ') || '–'}</td></tr>`).join('');
+  const loot = g.gained.length ? g.gained.map(i => `<span class="${i.rarity === 'rare' ? 'rare' : ''}">${i.emoji} ${itemName(i)}</span>`).join('') : `<span>${t('res.none')}</span>`;
   const box = $('#result'); box.classList.remove('hidden');
-  box.innerHTML = `<div class="res-box ${win ? 'win' : 'lose'}"><h1>${win ? '🏆 Victory!' : g.timeout ? '⌛ The party retreated' : '💀 Defeat'}</h1>
-    <div style="color:var(--muted)">${g.camp.name} · ${g.round} rounds · 💰 ${g.gold} gold</div>
-    <table><tr><th>Hero</th><th>Status</th><th>Damage</th><th>Healed</th><th>Kills</th><th>Gear</th></tr>${rows}</table>
-    <b>Loot collected</b><div class="res-loot">${loot}</div>
-    <div class="res-btns"><button class="btn ghost" id="rNewParty">New party</button><button class="btn ghost" id="rCamp">Other campaign</button><button class="btn primary" id="rAgain">⚔ Play again</button></div></div>`;
-  $('#rAgain').onclick = () => Game.start(); $('#rCamp').onclick = () => Game.go('campaign'); $('#rNewParty').onclick = () => Game.go('party');
+  box.innerHTML = `<div class="res-box ${win ? 'win' : 'lose'}"><h1>${win ? t('res.win') : g.timeout ? t('res.retreat') : t('res.lose')}</h1>
+    <div style="color:var(--muted)">${S ? S.chapter + ' · ' : ''}${tr(g.camp.name)}</div>
+    ${S ? `<div class="epi">📜 ${win ? S.win : S.lose}</div>` : ''}
+    <div style="color:var(--muted)">${t('res.sub', { c: tr(g.camp.name), r: g.round, g: g.gold })}</div>
+    <table><tr><th>${t('res.hero')}</th><th>${t('res.status')}</th><th>${t('res.dmg')}</th><th>${t('res.healed')}</th><th>${t('res.kills')}</th><th>${t('res.gear')}</th></tr>${rows}</table>
+    <b>${t('res.loot')}</b><div class="res-loot">${loot}</div>
+    <div class="res-btns"><button class="btn ghost" id="rNewParty">${t('res.newparty')}</button><button class="btn ghost" id="rCamp">${t('res.othercamp')}</button><button class="btn primary" id="rAgain">${t('res.again')}</button></div></div>`;
+  $('#rAgain').onclick = () => Game.start(false); $('#rCamp').onclick = () => Game.go('campaign'); $('#rNewParty').onclick = () => Game.go('party');
+}
+
+/* ---- Dungeon Master narration ---- */
+GameUI.dm = async function (key, ctx = {}) {
+  const S = story(G.camp.id); if (!S || !S.dm[key]) return;
+  let v = S.dm[key]; if (Array.isArray(v)) v = v[Math.floor(Math.random() * v.length)];
+  const boss = G.units.find(u => u.boss);
+  const text = v.replace(/\{hero\}/g, ctx.u ? dn(ctx.u) : '').replace(/\{boss\}/g, boss ? dn(boss) : '');
+  logLine('🎙 ' + text, 'dm');
+  const tx = $('#dmText'); tx.textContent = '';
+  for (let i = 0; i < text.length; i += 2) { tx.textContent = text.slice(0, i + 2); await wait(16); }
+  tx.textContent = text;
+  await wait(Math.max(900, text.length * 22));
+};
+
+/* re-translate battle widgets after a language switch */
+function relocalizeBattle() {
+  if (!G || !UIX.board) return;
+  $('#bCampName').textContent = tr(G.camp.name); $('#roundTag').textContent = t('round', { n: G.round });
+  buildCards(G); G.units.forEach(refreshUnit);
+  G.units.forEach(u => { const e = UIX.units[u.id]; if (e) e.title = `${dn(u)} (${tr(u.cls)})`; });
+  const act = G.units.find(u => UIX.units[u.id] && UIX.units[u.id].classList.contains('active')); if (act) UIX.cards[act.id]?.classList.add('act');
 }
 
 setUI(GameUI);

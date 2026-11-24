@@ -8,12 +8,13 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo">🎲</span><div><b>Dice &amp; Dungeons</b><small>Auto-battle demo · no backend</small></div></div>
+  <div class="brand"><span class="logo">🎲</span><div><b>Dice &amp; Dungeons</b><small data-i18n="sub">Auto-battle demo · no backend</small></div></div>
   <ol class="steps">
-    <li data-step="party">1 · Party</li><li data-step="campaign">2 · Campaign</li><li data-step="battle">3 · Battle</li>
+    <li data-step="party" data-i18n="step.party">1 · Party</li><li data-step="campaign" data-i18n="step.campaign">2 · Campaign</li><li data-step="story" data-i18n="step.story">3 · Story</li><li data-step="battle" data-i18n="step.battle">4 · Battle</li>
   </ol>
   <div class="opts">
-    <div class="seg" id="viewSeg" title="Unit display"><button data-view="model" class="on">🧍 Model</button><button data-view="chip">⚪ Chip</button></div>
+    <div class="seg" id="langSeg" title="Language / ภาษา"><button data-lang="en" class="on">EN</button><button data-lang="th">ไทย</button></div>
+    <div class="seg" id="viewSeg" title="Unit display"><button data-view="model" class="on" data-i18n="view.model">🧍 Model</button><button data-view="chip" data-i18n="view.chip">⚪ Chip</button></div>
     <button class="icon" id="soundBtn" title="Sound">🔊</button>
   </div>
 </header>
@@ -21,32 +22,50 @@
 <main>
   <!-- 1. PARTY -->
   <section id="screen-party" class="screen">
-    <div class="h"><h1>Choose your party</h1><p>Pick up to 4 heroes. Mix tanks, healers and damage dealers.</p></div>
+    <div class="h"><h1 data-i18n="party.h">Choose your party</h1><p data-i18n="party.p">Pick up to 4 heroes.</p></div>
     <div id="classGrid" class="cls-grid"></div>
     <div class="dock">
       <div class="slots" id="partySlots"></div>
       <div class="dock-btns">
-        <button class="btn ghost" id="randParty">🎲 Random party</button>
-        <button class="btn ghost" id="clearParty">Clear</button>
-        <button class="btn primary" id="toCampaign" disabled>Choose campaign →</button>
+        <button class="btn ghost" id="randParty" data-i18n="btn.rand">🎲 Random party</button>
+        <button class="btn ghost" id="clearParty" data-i18n="btn.clear">Clear</button>
+        <button class="btn primary" id="toCampaign" disabled data-i18n="btn.toCamp">Choose campaign →</button>
       </div>
     </div>
   </section>
 
   <!-- 2. CAMPAIGN -->
   <section id="screen-campaign" class="screen hidden">
-    <div class="h"><h1>Choose a campaign</h1><p>Your party will fight automatically. Roll the dice and watch.</p></div>
+    <div class="h"><h1 data-i18n="camp.h">Choose a campaign</h1><p data-i18n="camp.p">A story awaits.</p></div>
     <div id="campGrid" class="camp-grid"></div>
     <div class="dock">
       <div class="slots" id="partySlots2"></div>
       <div class="dock-btns">
-        <button class="btn ghost" id="backParty">← Party</button>
-        <button class="btn primary" id="startBtn" disabled>⚔ Start adventure</button>
+        <button class="btn ghost" id="backParty" data-i18n="btn.backParty">← Party</button>
+        <button class="btn primary" id="startBtn" disabled data-i18n="btn.start">⚔ Start adventure</button>
       </div>
     </div>
   </section>
 
-  <!-- 3. BATTLE -->
+  <!-- 3. STORY -->
+  <section id="screen-story" class="screen hidden">
+    <div class="story">
+      <div class="story-art" id="storyArt"></div>
+      <div class="story-body">
+        <div class="chap" id="storyChap"></div>
+        <h1 id="storyTitle"></h1>
+        <div id="storyText" class="story-text"></div>
+        <div class="story-party-h" data-i18n="story.heroes">Your party</div>
+        <div class="story-party" id="storyParty"></div>
+        <div class="story-btns">
+          <button class="btn ghost" id="storyBack" data-i18n="story.back">← Campaign</button>
+          <button class="btn primary" id="storyBegin" data-i18n="story.begin">⚔ Begin battle ▶</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. BATTLE -->
   <section id="screen-battle" class="screen hidden">
     <div class="battle">
       <div class="left">
@@ -55,7 +74,7 @@
           <div class="ctrls">
             <button class="icon" id="pauseBtn" title="Pause / resume">⏸</button>
             <div class="seg" id="speedSeg"><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button></div>
-            <button class="btn small ghost" id="quitBtn">✕ Quit</button>
+            <button class="btn small ghost" id="quitBtn" data-i18n="btn.quit">✕ Quit</button>
           </div>
         </div>
         <div class="order" id="orderBar"></div>
@@ -71,12 +90,13 @@
           </div>
           <div id="banner" class="banner hidden"></div>
         </div>
+        <div id="dmBar" class="dmbar"><span class="who">🎙 DM</span><span id="dmText"></span></div>
       </div>
       <aside class="right">
-        <h3>Party</h3><div id="partyCards" class="cards"></div>
-        <h3>Enemies</h3><div id="enemyList" class="elist"></div>
-        <h3>Inventory</h3><div id="invBox" class="inv"></div>
-        <h3>Battle log</h3><div id="log" class="log"></div>
+        <h3 data-i18n="h.party">Party</h3><div id="partyCards" class="cards"></div>
+        <h3 data-i18n="h.enemies">Enemies</h3><div id="enemyList" class="elist"></div>
+        <h3 data-i18n="h.inv">Inventory</h3><div id="invBox" class="inv"></div>
+        <h3 data-i18n="h.log">Battle log</h3><div id="log" class="log"></div>
       </aside>
     </div>
   </section>
@@ -85,6 +105,8 @@
 <div id="result" class="result hidden"></div>
 
 <script src="js/data.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/story.js"></script>
 <script src="js/models.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/ui.js"></script>
